@@ -60,7 +60,22 @@ Ogni tappa = un commit.
        illeggibili, si rigenera in un attimo con `node embed.js`.
      - Fase separata dallo scraping: se cambio il modo di fare gli embedding non devo
        rifare lo scraping, riparto da `recipes.json`.
-- [ ] 4. Ricerca semantica (`search.js`) → similarita coseno query/ricette
+- - [x] 4. Ricerca semantica (`search.js`) → similarita coseno query/ricette
+
+     **Cosa fa:** trasforma la domanda dell'utente in embedding (via Ollama), calcola
+     la similarita coseno con tutte le ricette, ordina e mostra le piu pertinenti.
+
+     **Ruolo di Ollama:** genera l'embedding della domanda. Il confronto tra vettori
+     (similarita coseno) e invece puro JavaScript.
+
+     **Cosa dimostra (pregi e limiti):**
+     - Pregio: trova ricette per SIGNIFICATO, non per parola esatta ("torta cioccolato
+       veloce" trova i dolci al cioccolato giusti senza cercare le parole precise).
+     - Limite: la semantica pura non applica vincoli precisi. Alla query "frutta estiva"
+       mette in cima torte al cioccolato e la cheesecake ai frutti di bosco solo 4a: non
+       "sa" cosa sia di stagione, anche se il dato esiste nel campo seasonality.
+     - Questo limite e la MOTIVAZIONE della tappa 5: aggiungere filtri strutturati
+       (stagione, tempo) sopra la ricerca semantica = RAG ibrido.
 - [ ] 5. RAG ibrido (`julia.js`) → filtri (stagione + tempo) + generazione con llama3.2
        Guardia anti-allucinazione: prompt severo + stop su zero risultati
 - [ ] 6. Interfaccia web → server Express + pagina HTML
