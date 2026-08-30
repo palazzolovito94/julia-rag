@@ -42,7 +42,24 @@ Ogni tappa = un commit.
        matcha sottostringhe: cosi prende sia singolare che plurale.
      - Ricette senza frutta stagionale restano con lista vuota = "adatta tutto l'anno",
        gestite dopo come "nessun vincolo".
-- [ ] 3. Embeddings (`embed.js`) → testo ricette → vettori con nomic-embed-text
+- - [x] 3. Embeddings (`embed.js`) → testo ricette → vettori con nomic-embed-text
+
+     **Cosa fa:** per ogni ricetta costruisce un testo (nome + ingredienti), lo manda
+     a Ollama col modello `nomic-embed-text` che restituisce un embedding (vettore di
+     768 numeri = significato del testo). Calcola anche la stagionalita e salva tutto
+     in `embeddings.json`.
+
+     **Ruolo di Ollama:** qui entra per la prima volta. Esegue il modello di embedding
+     in locale, trasformando testo → vettori. Nessun servizio cloud, nessuna chiave API.
+
+     **Perché così:**
+     - Embedding su nome + ingredienti (non le istruzioni): le istruzioni sono lunghe e
+       procedurali, "diluiscono" il significato e peggiorano la ricerca. Cosi il match
+       avviene sugli ingredienti, che e cio che conta per cercare una ricetta.
+     - `embeddings.json` e escluso da Git (.gitignore): e grosso e pieno di vettori
+       illeggibili, si rigenera in un attimo con `node embed.js`.
+     - Fase separata dallo scraping: se cambio il modo di fare gli embedding non devo
+       rifare lo scraping, riparto da `recipes.json`.
 - [ ] 4. Ricerca semantica (`search.js`) → similarita coseno query/ricette
 - [ ] 5. RAG ibrido (`julia.js`) → filtri (stagione + tempo) + generazione con llama3.2
        Guardia anti-allucinazione: prompt severo + stop su zero risultati
