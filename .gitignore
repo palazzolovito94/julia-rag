@@ -1,2 +1,4 @@
 node_modules/
 embeddings.json
+*.html
+!public/*.html
