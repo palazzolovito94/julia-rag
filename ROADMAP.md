@@ -111,12 +111,21 @@ Ogni tappa = un commit.
        terminale, lanciato solo se il file e eseguito direttamente (`require.main === module`).
      - Frontend diviso in tre file: index.html (struttura), style.css (stile), script.js (logica).
 
-## Sviluppi futuri (raffinamenti individuati)
-- Gestione ingredienti ESCLUSI ("niente cioccolato"): serve un filtro che scarti le
-  ricette contenenti un ingrediente indicato come indesiderato.
-- Allucinazioni residue: il modello 3B tende a inventare ricette quando i filtri lasciano
-  un contesto poco pertinente alla domanda. Difese possibili: prompt ancora piu rigido,
-  mostrare all'utente i nomi reali delle ricette trovate, o un modello piu grande.
+## Raffinamenti realizzati (dopo la tappa 6)
+- Dataset ampliato: da 33 a 125 ricette, raccolte da piu sottocategorie di
+  GialloZafferano (Torte, Biscotti, Cheesecakes, Gelati-e-Semifreddi, ecc.).
+- Filtro esclusione ingredienti: `estraiEsclusioni()` rileva "senza/niente/no + ingrediente"
+  (su una lista di ingredienti noti) e scarta le ricette che li contengono. Risolve
+  richieste tipo "niente cioccolato".
+- Prompt anti-allucinazione rafforzato: elenco esplicito dei nomi ammessi, divieto di
+  inventare o di modificare/sostituire ingredienti, divieto di fingere memoria di
+  ricerche precedenti. Bilanciato per proporre le ricette piu vicine quando esistono,
+  e rifiutare solo quando davvero nessuna e pertinente.
+
+## Sviluppi futuri
+- Esclusioni combinate con negazione piu precisa (evitare falsi esclusi in frasi complesse).
+- Mostrare all'utente i nomi reali delle ricette trovate accanto alla risposta (trasparenza).
+- Modello piu grande per ridurre ulteriormente le imprecisioni residue del 3B.
 
 ## Concetto chiave
 L'IA non e "addestrata" sulle ricette: i dati restano nei file e vengono

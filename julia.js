@@ -81,25 +81,51 @@ function estraiTempoMax(query) {
   return null;
 }
 
+// ===== FUNZIONE: estrai gli ingredienti da escludere dalla query =====
+function estraiEsclusioni(query) {
+  const testo = query.toLowerCase();
+  const ingredientiNoti = [
+    'cioccolato', 'nocciole', 'noci', 'mandorle', 'arachidi',
+    'uova', 'latte', 'burro', 'panna', 'cocco', 'caffè',
+    'liquore', 'alcol', 'glutine', 'farina',
+  ];
+  const negazioni = ['senza', 'niente', 'no ', 'non '];
+
+  const esclusi = [];
+  for (const ingrediente of ingredientiNoti) {
+    if (testo.includes(ingrediente)) {
+      // controlla se compare una negazione prima dell'ingrediente
+      const posizione = testo.indexOf(ingrediente);
+      const testoPrima = testo.slice(0, posizione);
+      const negato = negazioni.some(neg => testoPrima.includes(neg));
+      if (negato) {
+        esclusi.push(ingrediente);
+      }
+    }
+  }
+  return esclusi;
+}
 
 // ===== FUNZIONE: genera la risposta con llama3.2 =====
 async function generaRisposta(query, ricetteTrovate) {
   let contesto = '';
   for (const r of ricetteTrovate) {
-    contesto += `\nRicetta: ${r.name}\n`;
-    contesto += `Ingredienti: ${r.ingredients.join(', ')}\n`;
-    contesto += `Tempo preparazione: ${r.prepTime}, cottura: ${r.cookTime}\n`;
+    contesto += `\n- ${r.name} (ingredienti: ${r.ingredients.join(', ')}; preparazione: ${r.prepTime}, cottura: ${r.cookTime})\n`;
   }
 
-  const prompt = `Sei Julia, un'assistente esperta di dolci e pasticceria. Rispondi alla domanda dell'utente in modo amichevole e discorsivo.
+  const nomiAmmessi = ricetteTrovate.map(r => r.name).join(', ');
 
-REGOLE IMPORTANTI:
-- Puoi consigliare SOLO ricette presenti nell'elenco "RICETTE DISPONIBILI" qui sotto.
-- Non inventare, non suggerire e non menzionare MAI ricette o preparazioni che non sono nell'elenco, nemmeno come idea extra o alternativa.
-- Se l'utente vuole qualcosa che non è nell'elenco, dillo con onestà e fermati.
-- Riferisciti alle ricette col loro nome esatto.
+  const prompt = `Sei Julia, un'assistente esperta di dolci. Rispondi in modo amichevole ma sobrio e conciso.
 
-RICETTE DISPONIBILI:
+REGOLE FERREE:
+- Puoi nominare ESCLUSIVAMENTE queste ricette: ${nomiAmmessi}.
+- Non inventare altre ricette e non proporre di modificare o sostituire ingredienti di una ricetta per adattarla (es. NON dire "usa la ricetta X e sostituisci Y").
+- Proponi le ricette dell'elenco che più si avvicinano alla richiesta, anche se il nome non è identico a ciò che chiede l'utente.
+- Solo se DAVVERO nessuna ricetta dell'elenco è pertinente, dillo in una frase e fermati.
+- Usa i nomi esatti delle ricette, senza aggiungere prefissi come "Ricetta:".
+- Non fingere di ricordare ricerche precedenti dell'utente.
+
+RICETTE DISPONIBILI (le uniche che puoi nominare):
 ${contesto}
 
 DOMANDA UTENTE: ${query}
@@ -114,7 +140,7 @@ RISPOSTA:`;
       prompt: prompt,
       stream: false,
       options: {
-    temperature: 0.2
+        temperature: 0.2
       }
     })
   });
@@ -129,6 +155,11 @@ async function chiediAJulia(query) {
   const queryEmbedding = await getEmbedding(query);
   const stagioneRichiesta = estraiStagione(query);
   const tempoMax = estraiTempoMax(query);
+  const esclusi = estraiEsclusioni(query);
+
+  if (stagioneRichiesta) console.log('[filtro stagione:', stagioneRichiesta + ']');
+  if (tempoMax) console.log('[filtro tempo: max', tempoMax, 'minuti]');
+  if (esclusi.length > 0) console.log('[esclusi:', esclusi.join(', ') + ']');
 
   let risultati = recipes.map(recipe => ({
     recipe: recipe,
@@ -145,6 +176,15 @@ async function chiediAJulia(query) {
     risultati = risultati.filter(r =>
       durataInMinuti(r.recipe.prepTime) <= tempoMax
     );
+  }
+
+    // filtro esclusione: scarta ricette che contengono un ingrediente indesiderato
+  if (esclusi.length > 0) {
+    risultati = risultati.filter(r => {
+      const ingredientiTesto = r.recipe.ingredients.join(' ').toLowerCase();
+      // tieni la ricetta solo se NON contiene nessuno degli ingredienti esclusi
+      return !esclusi.some(ing => ingredientiTesto.includes(ing));
+    });
   }
 
   risultati.sort((a, b) => b.score - a.score);
