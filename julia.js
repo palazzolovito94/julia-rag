@@ -123,14 +123,8 @@ RISPOSTA:`;
 }
 
 
-// ===== FUNZIONE PRINCIPALE =====
-async function main() {
-  const query = process.argv.slice(2).join(' ');
-  if (!query) {
-    console.log('Uso: node julia.js <la tua domanda>');
-    return;
-  }
-
+// ===== FUNZIONE RIUTILIZZABILE: il flusso RAG completo =====
+async function chiediAJulia(query) {
   const recipes = JSON.parse(fs.readFileSync('embeddings.json', 'utf-8'));
   const queryEmbedding = await getEmbedding(query);
   const stagioneRichiesta = estraiStagione(query);
@@ -141,14 +135,12 @@ async function main() {
     score: cosineSimilarity(queryEmbedding, recipe.embedding)
   }));
 
-  // filtro stagionale morbido: tiene ricette della stagione giusta o neutre
   if (stagioneRichiesta) {
     risultati = risultati.filter(r =>
       r.recipe.seasonality.length === 0 || r.recipe.seasonality.includes(stagioneRichiesta)
     );
   }
 
-  // filtro tempo: tiene solo ricette con preparazione entro la soglia
   if (tempoMax) {
     risultati = risultati.filter(r =>
       durataInMinuti(r.recipe.prepTime) <= tempoMax
@@ -156,22 +148,35 @@ async function main() {
   }
 
   risultati.sort((a, b) => b.score - a.score);
-
   const top3 = risultati.slice(0, 3).map(r => r.recipe);
 
-  // guardia anti-allucinazione: se i filtri non lasciano nulla, fermati
+  // guardia anti-allucinazione
   if (top3.length === 0) {
-    console.log('\nJulia:\n');
-    console.log('Mi dispiace, nessuna ricetta nel mio ricettario soddisfa questi criteri. Prova ad allentare qualche vincolo (es. più tempo a disposizione o un\'altra stagione).');
-    return;
+    return 'Mi dispiace, nessuna ricetta nel mio ricettario soddisfa questi criteri. Prova ad allentare qualche vincolo (es. più tempo a disposizione o un\'altra stagione).';
   }
 
-  console.log('\nJulia sta pensando...\n');
-  if (stagioneRichiesta) console.log('[filtro stagione:', stagioneRichiesta + ']');
-  if (tempoMax) console.log('[filtro tempo: max', tempoMax, 'minuti]');
-
   const risposta = await generaRisposta(query, top3);
+  return risposta;
+}
+
+
+// ===== USO DA TERMINALE =====
+async function main() {
+  const query = process.argv.slice(2).join(' ');
+  if (!query) {
+    console.log('Uso: node julia.js <la tua domanda>');
+    return;
+  }
+  console.log('\nJulia sta pensando...\n');
+  const risposta = await chiediAJulia(query);
   console.log(risposta);
 }
 
-main();
+// lancia main() solo se il file è eseguito direttamente (non se importato)
+if (require.main === module) {
+  main();
+}
+
+
+// ===== EXPORT: rende chiediAJulia disponibile ad altri file =====
+module.exports = { chiediAJulia };

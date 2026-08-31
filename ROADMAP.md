@@ -76,9 +76,47 @@ Ogni tappa = un commit.
        "sa" cosa sia di stagione, anche se il dato esiste nel campo seasonality.
      - Questo limite e la MOTIVAZIONE della tappa 5: aggiungere filtri strutturati
        (stagione, tempo) sopra la ricerca semantica = RAG ibrido.
-- [ ] 5. RAG ibrido (`julia.js`) → filtri (stagione + tempo) + generazione con llama3.2
-       Guardia anti-allucinazione: prompt severo + stop su zero risultati
-- [ ] 6. Interfaccia web → server Express + pagina HTML
+- [x] 5. RAG ibrido (`julia.js`) → filtri (stagione + tempo) + generazione con llama3.2
+
+     **Cosa fa:** unisce tutto. Fa la ricerca semantica, applica i filtri strutturati,
+     prende le migliori ricette e le passa a llama3.2:3b che genera la risposta di Julia.
+
+     **Ruolo di Ollama:** due modelli. nomic-embed-text per l'embedding della domanda,
+     llama3.2:3b per generare la risposta finale in linguaggio naturale.
+
+     **I filtri (il "RAG ibrido"):**
+     - Stagione (morbido): se la query nomina una stagione, tiene solo ricette di quella
+       stagione o neutre (seasonality vuota). Non esclude i dolci "sempre validi".
+     - Tempo: se la query dice "veloce", tiene solo ricette con preparazione <= 30 min.
+       Si guarda prepTime (lavoro attivo), non la cottura (tempo passivo nel forno).
+
+     **Difese anti-allucinazione (3 livelli):**
+     - Prompt severo: "consiglia SOLO ricette dall'elenco, non inventare".
+     - Temperatura 0.2: il modello e piu conservativo, si aggrappa al contesto reale.
+     - Guardia zero-risultati: se i filtri non lasciano ricette, Julia lo dice e si ferma
+       invece di ricevere un contesto vuoto e inventare.
+
+     **Limite noto:** con un modello piccolo (3B) in locale l'allucinazione si riduce
+     molto ma non sempre si azzera del tutto. Trade-off accettato per girare gratis
+     e offline.
+- [x] 6. Interfaccia web → server Express + pagina HTML
+
+     **Cosa fa:** un server Express (`server.js`) espone la logica RAG su un endpoint
+     web `/api/chiedi`, e serve una pagina (`public/`) con campo domanda, bottone e area
+     risposta. L'utente scrive, il browser chiama il server, Julia risponde nella pagina.
+
+     **Struttura (separazione delle responsabilita):**
+     - `server.js` importa `chiediAJulia` da julia.js (nessuna duplicazione di logica).
+     - julia.js rifattorizzato: `chiediAJulia(query)` riutilizzabile + `main()` per il
+       terminale, lanciato solo se il file e eseguito direttamente (`require.main === module`).
+     - Frontend diviso in tre file: index.html (struttura), style.css (stile), script.js (logica).
+
+## Sviluppi futuri (raffinamenti individuati)
+- Gestione ingredienti ESCLUSI ("niente cioccolato"): serve un filtro che scarti le
+  ricette contenenti un ingrediente indicato come indesiderato.
+- Allucinazioni residue: il modello 3B tende a inventare ricette quando i filtri lasciano
+  un contesto poco pertinente alla domanda. Difese possibili: prompt ancora piu rigido,
+  mostrare all'utente i nomi reali delle ricette trovate, o un modello piu grande.
 
 ## Concetto chiave
 L'IA non e "addestrata" sulle ricette: i dati restano nei file e vengono
